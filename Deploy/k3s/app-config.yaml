@@ -1,0 +1,88 @@
+apiVersion: v1
+data:
+  ACCESS_TOKEN_EXPIRES_MINUTES: "30"
+  ALGORITHM: HS256
+  API_PORT: "8000"
+  APP_DATA_KEYSPACE: app_data
+  AUTH_KEYSPACE: auth
+  AVAILABLE_STATUS: '["pending", "in_progress", "resolved"]'
+  CASSANDRA_PORT: "9042"
+  CASSANDRA_DATA_PATH: /var/lib/cassandra
+  CASSANDRA_HOST: database-cassandra
+  CASSANDRA_LOCAL_PORT: "9042"
+  CERTS_VOLUME: /etc/nginx/certs
+  CHECK_INCIDENT_RESOLVED_FROM_VIDEO_SYS_INSTRUCTION: |
+    "You are a reports resolver.
+    Analyze the image, description and category of the problem and a video with the current situation.
+    Return a JSON object with 'resolved' with the value 'true' or 'false'. Don't include any other text or explanations.
+    You need to check if the problem is resolved or not. Having 100% confidence is required.
+    It is better to say 'false' if you are not sure."
+  CHECK_INCIDENT_RESOLVED_TOPIC: ai_check_incident_resolved
+  CONF_VOLUME: /etc/nginx/conf.d
+  DEFAULT_CATEGORY: "others"
+  DEFAULT_SEVERITY: "low"
+  DESCRIPTION_CATEGORY_SEVERITY_SYS_INSTRUCTION: |
+    "You are reporting issues.
+    Analyze the image and return a JSON object with keys 'description', 'category', and 'severity'.
+    Use %s for language, classify the issue as one of the categories in this list %s, and assign a severity level ['low', 'medium', 'high'].
+    If you think the problem does not fit into any of the categories in the provided list, return a JSON object with 'description' key with the value 'false', 'category' key with the value 'false', and 'severity' key with the value 'false'.
+    Begin the 'description' with a general greeting that includes an introduction.
+    In description, your task is to **describe the urban problem as if you are witnessing the scene firsthand**. Be concise and clear in your description without being verbose.
+    Focus solely on the issue without using offensive language."
+  DESCRIPTION_CATEGORY_SEVERITY_TOPIC: ai_description_category_severity
+  ENDPOINTS_PREFIX: /api/v1
+  FIX_AI_EMAIL: fix.ai.app@gmail.com
+  GEMINI_API_KEY: add-key-here
+  H3_INCIDENT_RESOLUTION: "13"
+  H3_INDEX_KEYSPACE: h3_index
+  H3_ORGANIZATION_MAXIMUM_RESOLUTION: "13"
+  H3_ORGANIZATION_MINIMUM_RESOLUTION: "6"
+  HTML_VOLUME: /usr/share/nginx/html
+  HTTPS_ENABLED: "true"
+  INCIDENT_TTL: "300"
+  INCIDENT_DESCRIPTION_SIMILARITY_INSTRUCTION: |
+    "Your task is to evaluate the semantic similarity between a reference incident description and a set of other incident descriptions.
+    **Reference Incident:** '%s'
+    **Analyze the following incident descriptions and determine the most similar one to the reference incident:**
+    %s
+    **Output:** Return a JSON object containing the 'similar_incident_id' of the most similar incident and its 'similarity_percentage' (a numerical value between 0 and 100, inclusive).
+    **Constraints:**
+    * The similarity should be based on the meaning and context of the descriptions.
+    * Return only the JSON object. Do not include any other text or explanations."
+  INCIDENT_DESCRIPTION_SIMILARITY_THRESHOLD: "90.0"
+  JOB_CLUSTERING_TOPIC: ai_job_clustering
+  LLM_BOOTSTRAP_SERVERS: '[kafka:9092]'
+  LLM_GROUP_ID: ai-llm-group
+  LLM_GROUP_INSTANCE_ID: ai-worker1
+  MAX_OCCURRENCES_SCROLL_MOBILE_LIST_PAGE: "10"
+  MAX_OCCURRENCES_SCROLL_WEBSITE_LIST_PAGE: "20"
+  MERGE_DESCRIPTION_CATEGORY_SEVERITY_SYS_INSTRUCTION: |
+    "You are reporting issues.
+    Analyze the image and return a JSON object with keys 'description' and 'severity'.
+    Use %s for language and assign a severity level ['low', 'medium', 'high'].
+    Combine the new occurrence description and image to obtain a new main description.
+    In description, your task is to analyze the image and describe the problem. Ignore any initial greeting or introductory phrases that might be present in the provided description. Be concise and clear in your description without being verbose.
+    Focus solely on the issue without using offensive language.
+    Combine the new occurrence description and image to obtain a new severity."
+  MINIO_CONTAINER_PORT: "9000"
+  MINIO_DATA_PATH: /data
+  MINIO_HOST: database-minio
+  MINIO_PORT: "9000"
+  MINIO_ROOT_PASSWORD: admin123
+  MINIO_ROOT_USER: admin123
+  PHOTOS_BUCKET_NAME: photos-bucket
+  REFRESH_TOKEN_EXPIRES_DAYS: "150"
+  SECRET_KEY: 8cdad8418c9de37e05df5e23b06328e3ebddf46601897cbdacc4b3da9b2f5336
+  SENDGRID_API_KEY: add-key-here
+  REDIS_PORT: "6379"
+  REDIS_HOST: redis-cache
+  REDIS_TTL_SEC_NEARBY_INCIDENTS: "60"
+  VIDEOS_BUCKET_NAME: videos-bucket
+
+kind: ConfigMap
+metadata:
+  creationTimestamp: "2025-04-14T11:36:04Z"
+  name: app-config
+  namespace: default
+  resourceVersion: "21871"
+  uid: f3ed96c3-f269-4f75-9da3-9e60ac1d2f84

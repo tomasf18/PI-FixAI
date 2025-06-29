@@ -1,0 +1,234 @@
+x-common-llm-env: &common_llm_env
+  CASSANDRA_PORT: ${CASSANDRA_CONTAINER_PORT}
+  CASSANDRA_HOST: ${CASSANDRA_HOST}
+  AUTH_KEYSPACE: ${AUTH_KEYSPACE}
+  H3_INDEX_KEYSPACE: ${H3_INDEX_KEYSPACE}
+  APP_DATA_KEYSPACE: ${APP_DATA_KEYSPACE}
+  MINIO_HOST: ${MINIO_HOST}
+  MINIO_PORT: ${MINIO_CONTAINER_PORT}
+  MINIO_ROOT_USER: ${MINIO_ROOT_USER}
+  MINIO_ROOT_PASSWORD: ${MINIO_ROOT_PASSWORD}
+  PHOTOS_BUCKET_NAME: ${PHOTOS_BUCKET_NAME}
+  VIDEOS_BUCKET_NAME: ${VIDEOS_BUCKET_NAME}
+  GEMINI_API_KEY: ${GEMINI_API_KEY}
+  DESCRIPTION_CATEGORY_SEVERITY_SYS_INSTRUCTION: ${DESCRIPTION_CATEGORY_SEVERITY_SYS_INSTRUCTION}
+  INCIDENT_DESCRIPTION_SIMILARITY_INSTRUCTION: ${INCIDENT_DESCRIPTION_SIMILARITY_INSTRUCTION}
+  CHECK_INCIDENT_RESOLVED_FROM_VIDEO_SYS_INSTRUCTION: ${CHECK_INCIDENT_RESOLVED_FROM_VIDEO_SYS_INSTRUCTION}
+  INCIDENT_DESCRIPTION_SIMILARITY_THRESHOLD: ${INCIDENT_DESCRIPTION_SIMILARITY_THRESHOLD}
+  MERGE_DESCRIPTION_CATEGORY_SEVERITY_SYS_INSTRUCTION: ${MERGE_DESCRIPTION_CATEGORY_SEVERITY_SYS_INSTRUCTION}
+  JOB_CLUSTERING_TOPIC: ${JOB_CLUSTERING_TOPIC}
+  CHECK_INCIDENT_RESOLVED_TOPIC: ${CHECK_INCIDENT_RESOLVED_TOPIC}
+  LLM_BOOTSTRAP_SERVERS: ${LLM_BOOTSTRAP_SERVERS}
+  DESCRIPTION_CATEGORY_SEVERITY_TOPIC: ${DESCRIPTION_CATEGORY_SEVERITY_TOPIC}    
+  LLM_GROUP_ID: ${LLM_GROUP_ID}
+  REDIS_HOST: ${REDIS_HOST}
+  REDIS_PORT: ${REDIS_CONTAINER_PORT}
+  DEFAULT_CATEGORY: ${DEFAULT_CATEGORY}
+  DEFAULT_SEVERITY: ${DEFAULT_SEVERITY}
+
+services:
+  database-cassandra:
+    build: 
+      context: ./Backend/database/cassandra
+      dockerfile: Dockerfile
+    ports:
+      - "${CASSANDRA_LOCAL_PORT}:${CASSANDRA_CONTAINER_PORT}"
+    volumes:
+      - cassandra_db_data:/var/lib/cassandra
+    healthcheck:
+      test: ["CMD", "cqlsh", "-e", "describe keyspaces"]
+      interval: 15s
+      timeout: 10s
+      retries: 8
+    networks:
+      - vm-network
+
+  database-minio:
+    build:
+      context: ./Backend/database/minio
+      dockerfile: Dockerfile
+    ports:
+      - 9001:9001
+    environment:
+      - MINIO_HOST=${MINIO_HOST}
+      - MINIO_PORT=${MINIO_CONTAINER_PORT}
+      - MINIO_LOCAL_PORT=${MINIO_LOCAL_PORT}
+      - MINIO_ROOT_USER=${MINIO_ROOT_USER}
+      - MINIO_ROOT_PASSWORD=${MINIO_ROOT_PASSWORD}
+      - PHOTOS_BUCKET_NAME=${PHOTOS_BUCKET_NAME}
+      - VIDEOS_BUCKET_NAME=${VIDEOS_BUCKET_NAME}
+      - MINIO_ADMIN_WEBSITE_LOCAL_PORT=${MINIO_ADMIN_WEBSITE_LOCAL_PORT}
+
+    volumes:
+      - minio_data:${MINIO_DATA_PATH}
+    networks:
+      - vm-network
+
+  backend:
+    depends_on:
+      database-cassandra:
+        condition: service_healthy
+      kafka:
+        condition: service_healthy
+    build:
+      context: ./Backend/api-services
+      dockerfile: Dockerfile
+    environment:
+      - CASSANDRA_PORT=${CASSANDRA_CONTAINER_PORT}
+      - CASSANDRA_HOST=${CASSANDRA_HOST}
+      - AUTH_KEYSPACE=${AUTH_KEYSPACE}
+      - H3_INDEX_KEYSPACE=${H3_INDEX_KEYSPACE}
+      - APP_DATA_KEYSPACE=${APP_DATA_KEYSPACE}
+      - MAX_OCCURRENCES_SCROLL_MOBILE_LIST_PAGE=${MAX_OCCURRENCES_SCROLL_MOBILE_LIST_PAGE}
+      - MAX_OCCURRENCES_SCROLL_WEBSITE_LIST_PAGE=${MAX_OCCURRENCES_SCROLL_WEBSITE_LIST_PAGE}
+      - AVAILABLE_STATUS=${AVAILABLE_STATUS}
+      - SECRET_KEY=${SECRET_KEY}
+      - ALGORITHM=${ALGORITHM}
+      - ACCESS_TOKEN_EXPIRES_MINUTES=${ACCESS_TOKEN_EXPIRES_MINUTES}
+      - ENDPOINTS_PREFIX=${ENDPOINTS_PREFIX}
+      - H3_INCIDENT_RESOLUTION=${H3_INCIDENT_RESOLUTION}
+      - H3_ORGANIZATION_MINIMUM_RESOLUTION=${H3_ORGANIZATION_MINIMUM_RESOLUTION}
+      - H3_ORGANIZATION_MAXIMUM_RESOLUTION=${H3_ORGANIZATION_MAXIMUM_RESOLUTION}
+      - MINIO_HOST=${MINIO_HOST}
+      - MINIO_PORT=${MINIO_CONTAINER_PORT}
+      - MINIO_ROOT_USER=${MINIO_ROOT_USER}
+      - MINIO_ROOT_PASSWORD=${MINIO_ROOT_PASSWORD}
+      - PHOTOS_BUCKET_NAME=${PHOTOS_BUCKET_NAME}
+      - VIDEOS_BUCKET_NAME=${VIDEOS_BUCKET_NAME}
+      - API_PORT=${API_CONTAINER_PORT}
+      - INCIDENT_TTL=${INCIDENT_TTL}
+      - HTTPS_ENABLED=${HTTPS_ENABLED}
+      - SENDGRID_API_KEY=${SENDGRID_API_KEY}
+      - FIX_AI_EMAIL=${FIX_AI_EMAIL}
+      - GEMINI_API_KEY=${GEMINI_API_KEY}
+      - DESCRIPTION_CATEGORY_SEVERITY_SYS_INSTRUCTION=${DESCRIPTION_CATEGORY_SEVERITY_SYS_INSTRUCTION}
+      - CHECK_INCIDENT_RESOLVED_FROM_VIDEO_SYS_INSTRUCTION=${CHECK_INCIDENT_RESOLVED_FROM_VIDEO_SYS_INSTRUCTION}
+      - LLM_BOOTSTRAP_SERVERS=${LLM_BOOTSTRAP_SERVERS}
+      - DESCRIPTION_CATEGORY_SEVERITY_TOPIC=${DESCRIPTION_CATEGORY_SEVERITY_TOPIC}
+      - CHECK_INCIDENT_RESOLVED_TOPIC=${CHECK_INCIDENT_RESOLVED_TOPIC}
+      - JOB_CLUSTERING_TOPIC=${JOB_CLUSTERING_TOPIC}
+      - ACCESS_TOKEN_EXPIRES_MINUTES=${ACCESS_TOKEN_EXPIRES_MINUTES}
+      - REFRESH_TOKEN_EXPIRES_DAYS=${REFRESH_TOKEN_EXPIRES_DAYS}
+      - REDIS_HOST=${REDIS_HOST}
+      - REDIS_PORT=${REDIS_CONTAINER_PORT}
+      - REDIS_TTL_SEC_NEARBY_INCIDENTS=${REDIS_TTL_SEC_NEARBY_INCIDENTS}
+    volumes:
+      - ./Backend/api-services:/app
+    networks:
+      - vm-network
+    restart: on-failure
+
+  zookeeper:
+    image: confluentinc/cp-zookeeper:7.4.4
+    environment:
+      - ZOOKEEPER_CLIENT_PORT=${ZOOKEEPER_CONTAINER_PORT}
+      - ZOOKEEPER_TICK_TIME=${ZOOKEEPER_TICK_TIME}
+    networks:
+      - vm-network
+
+  kafka:
+    image: confluentinc/cp-kafka:7.4.4
+    depends_on:
+      - zookeeper
+    healthcheck:
+      test: nc -z localhost ${KAFKA_BROKER_PORT} || exit 1
+      start_period: 15s
+      interval: 5s
+      timeout: 10s
+      retries: 10
+    environment:
+      KAFKA_BROKER_ID: "${KAFKA_BROKER_ID}"
+      KAFKA_ZOOKEEPER_CONNECT: "${ZOOKEEPER_IP}:${ZOOKEEPER_CONTAINER_PORT}"
+      KAFKA_ADVERTISED_LISTENERS: PLAINTEXT://${KAFKA_IP}:${KAFKA_BROKER_PORT}
+      KAFKA_LISTENER_SECURITY_PROTOCOL_MAP: PLAINTEXT:PLAINTEXT
+      KAFKA_INTER_BROKER_LISTENER_NAME: PLAINTEXT
+      KAFKA_OFFSETS_TOPIC_REPLICATION_FACTOR: "${KAFKA_REPLICATION_FACTOR}"
+      KAFKA_LOG_RETENTION_MS: "${KAFKA_RETENTION_MS}"
+      KAFKA_LOG_RETENTION_BYTES: "${KAFKA_RETENTION_BYTES}"
+      KAFKA_LOG_RETENTION_CHECK_INTERVAL_MS: "${KAFKA_RETENTION_CHECK_INTERVAL_MS}"
+    restart: on-failure
+    networks:
+      - vm-network
+
+  llm-consumer-description:
+    depends_on:
+      database-cassandra:
+        condition: service_healthy
+      kafka:
+        condition: service_healthy
+    build:
+      context: ./Backend/consumer-services
+      dockerfile: Dockerfile
+    environment:
+      <<: *common_llm_env
+      TOPIC_NAME: ${DESCRIPTION_CATEGORY_SEVERITY_TOPIC}
+      LLM_GROUP_INSTANCE_ID: ${LLM_GROUP_INSTANCE_ID_DESCRIPTION}
+    networks:
+      - vm-network
+  
+  llm-consumer-clustering:
+    depends_on:
+      database-cassandra:
+        condition: service_healthy
+      kafka:
+        condition: service_healthy
+    build:
+      context: ./Backend/consumer-services
+      dockerfile: Dockerfile
+    environment:
+      <<: *common_llm_env
+      TOPIC_NAME: ${JOB_CLUSTERING_TOPIC}
+      LLM_GROUP_INSTANCE_ID: ${LLM_GROUP_INSTANCE_ID_CLUSTERING}
+    networks:
+      - vm-network
+
+  llm-consumer-check-resolved-incidents:
+    depends_on:
+      database-cassandra:
+        condition: service_healthy
+      kafka:
+        condition: service_healthy
+    build:
+      context: ./Backend/consumer-services
+      dockerfile: Dockerfile
+    environment:
+      <<: *common_llm_env
+      TOPIC_NAME: ${CHECK_INCIDENT_RESOLVED_TOPIC}
+      LLM_GROUP_INSTANCE_ID: ${LLM_GROUP_INSTANCE_ID_CHECK_INCIDENT}
+
+    networks:
+      - vm-network
+
+  nginx:
+    image: nginx:latest
+    container_name: nginx
+    depends_on:
+      - backend
+    ports:
+      - "${NGINX_LOCAL_PORT}:${NGINX_CONTAINER_PORT}"
+    volumes:
+      - ./nginx/conf.d:${CONF_VOLUME}
+      - ./nginx/html:${HTML_VOLUME}
+      - ./nginx/certs:${CERTS_VOLUME}
+    networks:
+      - vm-network
+
+  redis-cache:
+    image: redis:7.4.2
+    ports:
+      - "${REDIS_LOCAL_PORT}:${REDIS_CONTAINER_PORT}"
+    volumes:
+      - redis_data:${CACHE_DATA_PATH}
+    restart: on-failure
+    networks:
+      - vm-network
+    
+networks:
+  vm-network:
+    driver: bridge
+
+volumes:
+  cassandra_db_data:
+  minio_data:
+  redis_data:
+

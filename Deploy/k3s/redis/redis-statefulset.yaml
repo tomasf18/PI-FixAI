@@ -1,0 +1,32 @@
+apiVersion: apps/v1
+kind: StatefulSet
+metadata:
+  name: redis-cache-statefulset
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app: redis-cache-pod
+  template:
+    metadata:
+      labels:
+        app: redis-cache-pod
+    spec:
+      containers:
+        - name: redis-cache
+          image: redis:7.4.2
+          ports:
+            - containerPort: 6379
+
+          volumeMounts:
+            - name: redis-data
+              mountPath: /data
+  volumeClaimTemplates:
+    - metadata:
+        name: redis-data
+      spec:
+        accessModes: ["ReadWriteMany"]
+        storageClassName: nfs-redis
+        resources:
+          requests:
+            storage: 1Gi

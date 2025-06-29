@@ -1,0 +1,14 @@
+apiVersion: storage.k8s.io/v1
+kind: StorageClass
+metadata:
+  name: nfs-kafka
+provisioner: k8s-sigs.io/nfs-subdir-external-provisioner
+parameters:
+  onCreate: "chown 1000:1000 ${.PV.dir}"
+  onDelete: retain
+  pathPattern: "${.PVC.namespace}-${.PVC.name}"
+reclaimPolicy: Retain
+allowVolumeExpansion: true
+mountOptions:
+  - hard
+  - nfsvers=4.1

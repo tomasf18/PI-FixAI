@@ -1,0 +1,71 @@
+apiVersion: apps/v1
+kind: StatefulSet
+metadata:
+  name: database-cassandra-statefulset
+
+spec:
+  replicas: 1
+  serviceName: database-cassandra-headless
+  selector:
+    matchLabels:
+      app: database-cassandra-pod
+  template:
+    metadata:
+      labels:
+        app: database-cassandra-pod
+    spec:
+      imagePullSecrets:
+        - name: ghcr-secret
+      containers:
+        - name: database-cassandra
+          image: ghcr.io/pi-2024-2025-nap/backend-cassandra:bc19fdef1493126c8e42118dcba9ec956b983fc3
+          imagePullPolicy: IfNotPresent 
+          ports:
+            - name: cql
+              containerPort: 9042
+            - name: intra-node
+              containerPort: 7000
+          env:
+            - name: CASSANDRA_SEEDS
+              value: "database-cassandra-statefulset-0.database-cassandra-headless.default.svc.cluster.local" # add more if you have more replicas
+            - name: CASSANDRA_CLUSTER_NAME
+              value: "CassandraCluster"
+            - name: CASSANDRA_DC
+              value: "DC1"
+            - name: CASSANDRA_RACK
+              value: "Rack1"
+            - name: CASSANDRA_BROADCAST_ADDRESS
+              valueFrom:
+                fieldRef:
+                  fieldPath: status.podIP
+            - name: CASSANDRA_LISTEN_ADDRESS
+              valueFrom:
+                fieldRef:
+                  fieldPath: status.podIP
+            - name: CASSANDRA_RPC_ADDRESS
+              value: "0.0.0.0"
+
+
+          volumeMounts:
+            - name: cassandra-data
+              mountPath: /var/lib/cassandra
+          readinessProbe:
+            exec:
+              command: ["cqlsh", "localhost", "9042", "-e", "describe keyspaces"]
+            initialDelaySeconds: 60
+            periodSeconds: 20
+            timeoutSeconds: 5
+            failureThreshold: 8
+          lifecycle:
+            preStop:
+              exec:
+                command: ["/bin/bash", "-c", "nodetool drain"]
+  volumeClaimTemplates:
+    - metadata:
+        name: cassandra-data
+      spec:
+        accessModes: ["ReadWriteMany"]
+        storageClassName: nfs-cassandra
+        resources:
+          requests:
+            storage: 2Gi

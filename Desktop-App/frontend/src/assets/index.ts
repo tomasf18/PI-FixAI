@@ -1,0 +1,11 @@
+export { default as HomeSectionImage } from './city_control_new.png';
+export { default as SecuritySectionImage } from './privacy.svg';
+export { default as Logo } from './logos/logo-noback.png';
+export { default as MobileAppInitialPage } from './mobile_app/mobile_app_initial_page.png';
+export { default as MobileAppCamera } from './mobile_app/mobile_app_camera.png';
+export { default as MobileAppReportProblem } from './mobile_app/mobile_app_report_problem.png';
+export { default as MobileAppMap } from './mobile_app/mobile_app_map.png';
+export { default as MobileAppListReports } from './mobile_app/mobile_app_list_reports.png';
+export { default as MobileAppReportDetails } from './mobile_app/mobile_app_report_details.png';
+export { default as LoginSignUpImage } from './login-page.png';
+export { default as LogoSmall } from './logos/logo-small-noback.png';

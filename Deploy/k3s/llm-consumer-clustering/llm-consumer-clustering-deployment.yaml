@@ -1,0 +1,30 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: llm-consumer-clustering-deployment
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app: llm-consumer-clustering-pod
+  template:
+    metadata:
+      labels:
+        app: llm-consumer-clustering-pod
+    spec:
+      imagePullSecrets:
+        - name: ghcr-secret
+      containers:
+        - name: llm-consumer-clustering
+          image: ghcr.io/pi-2024-2025-nap/backend-consumer-services:bc19fdef1493126c8e42118dcba9ec956b983fc3
+          imagePullPolicy: IfNotPresent 
+          ports:
+            - containerPort: 8043
+          env:
+            - name: TOPIC_NAME
+              value: "ai_job_clustering"
+            - name: LLM_GROUP_INSTANCE_ID
+              value: "ai_worker_clustering"
+          envFrom:
+            - configMapRef:
+                name: app-config

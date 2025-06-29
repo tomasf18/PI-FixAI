@@ -1,0 +1,178 @@
+package main
+
+import (
+	"fmt"
+	"sync"
+	"github.com/torresjeff/rtmp"
+	"encoding/json"
+	"flag"
+	"log"
+	"net/url"
+	"os"
+	"os/signal"
+
+	"github.com/torresjeff/rtmp/audio"
+	"github.com/torresjeff/rtmp/video"
+
+	"github.com/gorilla/websocket"
+)
+
+
+
+
+
+
+
+
+var addr = flag.String("addr", ":8080", "http service address")
+
+var rtmpClient *rtmp.Client
+var rtmpConnected bool
+var rtmpMutex sync.Mutex // To ensure thread-safe access to the RTMP client
+
+type GeoData struct {
+	Latitude  float64 `json:"latitude"`
+	Longitude float64 `json:"longitude"`
+}
+
+
+
+func OnAudio(format audio.Format, sampleRate audio.SampleRate, sampleSize audio.SampleSize, channels audio.Channel, payload []byte, timestamp uint32) {
+	fmt.Println("client: on audio")
+}
+
+func OnVideo(frameType video.FrameType, codec video.Codec, payload []byte, timestamp uint32) {
+	fmt.Printf("client: on video - FrameType: %v, Codec: %v, Timestamp: %d, PayloadSize: %d bytes\n", frameType, codec, timestamp, len(payload))
+}
+
+func OnMetadata(metadata map[string]interface{}) {
+	fmt.Printf("client: on metadata: %+v", metadata)
+}
+
+
+
+func isActive(gd GeoData) bool {
+	return gd.Latitude > 10 && gd.Longitude > 10
+}
+
+func connectToRTMP() {
+    rtmpMutex.Lock()
+    defer rtmpMutex.Unlock()
+
+    if rtmpConnected {
+        log.Println("RTMP connection already active")
+        return
+    }
+
+    rtmpClient = &rtmp.Client{
+        OnAudio:    OnAudio,
+        OnVideo:    OnVideo,
+        OnMetadata: OnMetadata,
+    }
+
+    rtmpURL := "rtmp://localhost/app/publish_1"
+    log.Printf("Connecting to RTMP server: %s", rtmpURL)
+
+    err := rtmpClient.Connect(rtmpURL)
+    if err != nil {
+        log.Printf("Failed to connect to RTMP server: %v", err)
+        return
+    }
+
+    rtmpConnected = true
+    log.Println("Connected to RTMP server successfully")
+}
+
+// func disconnectFromRTMP() {
+//     rtmpMutex.Lock()
+//     defer rtmpMutex.Unlock()
+
+//     if !rtmpConnected {
+//         log.Println("RTMP connection is not active")
+//         return
+//     }
+
+//     err := rtmpClient.Close()
+//     if err != nil {
+//         log.Printf("Failed to close RTMP connection: %v", err)
+//         return
+//     }
+
+//     rtmpConnected = false
+//     log.Println("Disconnected from RTMP server successfully")
+// }
+
+func getLocation(wg *sync.WaitGroup) {
+    defer wg.Done()
+
+    interrupt := make(chan os.Signal, 1)
+    signal.Notify(interrupt, os.Interrupt)
+
+    u := url.URL{Scheme: "ws", Host: *addr, Path: "/location"}
+    log.Printf("connecting to %s", u.String())
+
+    c, _, err := websocket.DefaultDialer.Dial(u.String(), nil)
+    if err != nil {
+        log.Fatal("dial:", err)
+    }
+    defer c.Close()
+
+    done := make(chan struct{})
+
+    go func() {
+        defer close(done)
+        for {
+            _, message, err := c.ReadMessage()
+            if err != nil {
+                log.Println("read:", err)
+                return
+            }
+
+            log.Printf("recv: %s", message)
+
+            var gd GeoData
+            if err := json.Unmarshal(message, &gd); err != nil {
+                log.Println("json unmarshal:", err)
+                continue
+            }
+
+            if isActive(gd) {
+                log.Println("Active location detected")
+                connectToRTMP()
+            } else {
+                log.Println("Inactive location detected")
+				rtmpClient.session.messageManager.sendStatusMessage("status", "NetStream.Play.Stop", "Stopped playing stream.")
+                // disconnectFromRTMP()
+            }
+        }
+    }()
+
+    for {
+        select {
+        case <-done:
+            // WebSocket connection closed
+            log.Println("WebSocket connection closed")
+            return
+        case <-interrupt:
+            // Handle interrupt signal
+            log.Println("Interrupt received, closing connection")
+            c.WriteMessage(websocket.CloseMessage, websocket.FormatCloseMessage(websocket.CloseNormalClosure, ""))
+            // disconnectFromRTMP() // Ensure RTMP connection is closed on interrupt
+            return
+        }
+    }
+}
+
+func main() {
+
+    log.Println("Starting WebSocket client...")
+
+    var wg sync.WaitGroup
+    wg.Add(1)
+    go getLocation(&wg)
+
+    log.Println("WebSocket client started")
+
+    wg.Wait()
+    log.Println("WebSocket client finished")
+}

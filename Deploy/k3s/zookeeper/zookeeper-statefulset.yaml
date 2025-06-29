@@ -1,0 +1,54 @@
+apiVersion: apps/v1
+kind: StatefulSet
+metadata:
+  name: zookeeper-statefulset
+spec:
+  replicas: 1
+  serviceName: "zookeeper-headless"
+  selector:
+    matchLabels:
+      app: zookeeper-pod
+  template:
+    metadata:
+      labels:
+        app: zookeeper-pod
+    spec:
+      containers:
+      - name: zookeeper
+        image: confluentinc/cp-zookeeper:7.4.4
+        ports:
+        - containerPort: 2181  
+          name: client
+        - containerPort: 2888
+          name: server
+        - containerPort: 3888
+          name: leader-election
+        env:
+        - name: HOSTNAME
+          valueFrom:
+            fieldRef:
+              fieldPath: metadata.name
+        - name: ZOOKEEPER_CLIENT_PORT
+          value: "2181"
+        - name: ZOOKEEPER_TICK_TIME
+          value: "2000"
+        - name: ZOOKEEPER_SERVERS
+          value: "zookeeper-0.zookeeper-headless.default.svc.cluster.local:2888:3888" # add more if you have more replicas
+        command:
+          - sh
+          - -c
+          - |
+            export ZOOKEEPER_SERVER_ID=$(hostname | awk -F'-' '{print $NF}')
+            exec /etc/confluent/docker/run
+        volumeMounts:
+          - name: zookeeper-data
+            mountPath: /var/lib/zookeeper
+  volumeClaimTemplates:
+    - metadata:
+        name: zookeeper-data
+      spec:
+        accessModes: ["ReadWriteMany"]
+        storageClassName: nfs-zookeeper
+        resources:
+          requests:
+            storage: 2Gi

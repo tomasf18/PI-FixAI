@@ -1,0 +1,70 @@
+apiVersion: apps/v1
+kind: StatefulSet
+metadata:
+  name: database-minio-statefulset
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app: database-minio-pod
+  template:
+    metadata:
+      labels:
+        app: database-minio-pod
+    spec:
+      imagePullSecrets:
+        - name: ghcr-secret
+      containers:
+        - name: database-minio
+          image: ghcr.io/pi-2024-2025-nap/backend-minio:bc19fdef1493126c8e42118dcba9ec956b983fc3
+          imagePullPolicy: IfNotPresent 
+          ports:
+            - containerPort: 9000
+          env:
+            - name: MINIO_HOST
+              valueFrom:
+                configMapKeyRef:
+                  name: app-config
+                  key: MINIO_HOST
+            - name: MINIO_PORT
+              valueFrom:
+                configMapKeyRef:
+                  name: app-config
+                  key: MINIO_PORT
+            - name: MINIO_LOCAL_PORT
+              value: "9000"
+            - name: MINIO_ROOT_USER
+              valueFrom:
+                configMapKeyRef:
+                  name: app-config
+                  key: MINIO_ROOT_USER
+            - name: MINIO_ROOT_PASSWORD
+              valueFrom:
+                configMapKeyRef:
+                  name: app-config
+                  key: MINIO_ROOT_PASSWORD
+            - name: PHOTOS_BUCKET_NAME
+              valueFrom:
+                configMapKeyRef:
+                  name: app-config
+                  key: PHOTOS_BUCKET_NAME
+            - name: VIDEOS_BUCKET_NAME
+              valueFrom:
+                configMapKeyRef:
+                  name: app-config
+                  key: VIDEOS_BUCKET_NAME
+            - name: MINIO_ADMIN_WEBSITE_LOCAL_PORT
+              value: "9001"
+
+          volumeMounts:
+            - name: minio-data
+              mountPath: /data
+  volumeClaimTemplates:
+    - metadata:
+        name: minio-data
+      spec:
+        accessModes: ["ReadWriteMany"]
+        storageClassName: nfs-minio
+        resources:
+          requests:
+            storage: 2Gi

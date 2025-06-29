@@ -1,0 +1,25 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: backend-deployment
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app: backend-pod
+  template:
+    metadata:
+      labels:
+        app: backend-pod
+    spec:
+      imagePullSecrets:
+      - name: ghcr-secret
+      containers:
+        - name: backend
+          image: ghcr.io/pi-2024-2025-nap/backend-api-services:bc19fdef1493126c8e42118dcba9ec956b983fc3
+          imagePullPolicy: IfNotPresent 
+          ports:
+            - containerPort: 8000 
+          envFrom:
+            - configMapRef:
+                name: app-config
