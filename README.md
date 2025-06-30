@@ -91,6 +91,6 @@ Here you will find all relevant documentation and media related to the FixAI pro
 *   **Online Documentation:** [FixAI Documentation](https://pi-2024-2025-nap.github.io/Documentation/)
     *   Provides a summarized documentation of the project.
 
-## Important Note!
+## Important Note
 The project of this repository is not currently being maintained, as the team has graduated and moved on to other projects. However, it only needs some API keys to be fully functional (as the ones used during the project have already expired).   
 The code remains available for educational purposes and as a reference for future students and developers (me) interested in smart city solutions and desires to learn (or, in my case, remember) about the scalable (and highly used nowadays) technologies utilized in the project.
