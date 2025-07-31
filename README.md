@@ -1,5 +1,5 @@
 # FixAI: AI-Powered Platform for Smart City Issue Detection & Resolution
-#### `Grade: /20` 
+#### `Grade: 19/20` 
 
 ## Project Overview
 
